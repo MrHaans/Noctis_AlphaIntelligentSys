@@ -96,3 +96,4 @@ export async function GET() {
 | Date | Changes |
 |------|---------|
 | Initial | Template created with base setup |
+| 2026-03-08 | Added Nitter-based zero-cost scraper backend (`backend/`), Next.js API proxy (`/api/scraper/*`), updated Settings page with live Nitter instance health checker |
