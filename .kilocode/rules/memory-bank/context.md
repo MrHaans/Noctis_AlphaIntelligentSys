@@ -97,3 +97,4 @@ export async function GET() {
 |------|---------|
 | Initial | Template created with base setup |
 | 2026-03-08 | Added Nitter-based zero-cost scraper backend (`backend/`), Next.js API proxy (`/api/scraper/*`), updated Settings page with live Nitter instance health checker |
+| 2026-03-08 | Wired all frontend pages to real backend API — replaced all mock data with live Nitter scan results. Added `src/lib/api.ts` (typed fetch client) and `src/lib/use-scan.ts` (polling hook). Dashboard, Tweet Filter, FCFS Detector, and Keyword Scanner now show real data with loading/error states and 60s auto-polling. |
