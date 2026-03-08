@@ -14,7 +14,7 @@ The template is a clean Next.js 16 starter with TypeScript and Tailwind CSS 4. I
 - [x] ESLint configuration
 - [x] Memory bank documentation
 - [x] Recipe system for common features
-- [x] **Crypto Alpha Intelligence System** — full dashboard UI
+- [x] **Noctis Alpha Intelligence System** — full dashboard UI
   - Dashboard with pipeline overview, system stats, FCFS signals, alerts
   - Keyword Scanner page (add/remove/toggle, category tagging, hit counts)
   - Tweet Filter page (is_reply=false, is_retweet=false, country exclusion)

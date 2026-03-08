@@ -26,7 +26,7 @@ export function Sidebar() {
             ₿
           </div>
           <div>
-            <p className="text-white font-bold text-sm leading-tight">Crypto Alpha</p>
+            <p className="text-white font-bold text-sm leading-tight">Noctis Alpha</p>
             <p className="text-white/40 text-xs">Intelligence System</p>
           </div>
         </div>

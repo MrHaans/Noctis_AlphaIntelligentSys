@@ -1,5 +1,5 @@
 """
-Crypto Alpha Intelligence — Nitter Scraper Backend
+Noctis Alpha Intelligence — Nitter Scraper Backend
 FastAPI service that scrapes Nitter instances for crypto alpha signals.
 
 Run with:
@@ -30,7 +30,7 @@ from scraper import (
 # ─── App Setup ────────────────────────────────────────────────────────────────
 
 app = FastAPI(
-    title="Crypto Alpha Intelligence — Nitter Scraper",
+    title="Noctis Alpha Intelligence — Nitter Scraper",
     description="Zero-cost Twitter scraping via Nitter instances",
     version="1.0.0",
 )
@@ -141,7 +141,7 @@ def _enrich(tweet: ScrapedTweet, keywords: list[str]) -> TweetResult:
 @app.get("/", tags=["meta"])
 async def root():
     return {
-        "service": "Crypto Alpha Intelligence — Nitter Scraper",
+        "service": "Noctis Alpha Intelligence — Nitter Scraper",
         "version": "1.0.0",
         "docs": "/docs",
     }

@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Crypto Alpha Intelligence System",
+  title: "Noctis Alpha Intelligence System",
   description: "Automated crypto signal discovery via Twitter keyword scanning, FCFS detection, and smart alerting.",
 };
 

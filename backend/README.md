@@ -1,4 +1,4 @@
-# Crypto Alpha Intelligence — Nitter Scraper Backend
+# Noctis Alpha Intelligence — Nitter Scraper Backend
 
 Zero-cost Twitter/X scraping via [Nitter](https://github.com/zedeus/nitter) public instances.  
 No Twitter API key required. No monthly fees.
