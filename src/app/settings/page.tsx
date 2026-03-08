@@ -1,8 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/Badge";
+
+interface InstanceHealth {
+  [url: string]: boolean;
+}
+
+interface HealthData {
+  status: string;
+  instances: InstanceHealth;
+  healthy_count: number;
+  total_count: number;
+}
 
 export default function SettingsPage() {
   const [telegramToken, setTelegramToken] = useState("");
@@ -10,7 +21,36 @@ export default function SettingsPage() {
   const [discordWebhook, setDiscordWebhook] = useState("");
   const [scanInterval, setScanInterval] = useState(30);
   const [minScore, setMinScore] = useState(70);
-  const [twitterBearerToken, setTwitterBearerToken] = useState("");
+  const [backendUrl, setBackendUrl] = useState("http://localhost:8000");
+
+  // Nitter instance health
+  const [health, setHealth] = useState<HealthData | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
+  const [healthError, setHealthError] = useState<string | null>(null);
+
+  const checkHealth = async () => {
+    setHealthLoading(true);
+    setHealthError(null);
+    try {
+      const res = await fetch("/api/scraper/health");
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? `HTTP ${res.status}`);
+      }
+      const data: HealthData = await res.json();
+      setHealth(data);
+    } catch (e) {
+      setHealthError(e instanceof Error ? e.message : "Unknown error");
+      setHealth(null);
+    } finally {
+      setHealthLoading(false);
+    }
+  };
+
+  // Auto-check health on mount
+  useEffect(() => {
+    checkHealth();
+  }, []);
 
   return (
     <AppShell>
@@ -21,34 +61,86 @@ export default function SettingsPage() {
             ⚙️ Settings
           </h1>
           <p className="text-white/40 text-sm mt-1">
-            Configure API keys, scan intervals, and notification channels
+            Configure the Nitter scraper, scan intervals, and notification channels
           </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Twitter API */}
+          {/* Nitter Scraper Backend */}
           <div className="bg-white/5 border border-white/10 rounded-xl p-5">
             <h2 className="text-white font-semibold mb-1 flex items-center gap-2">
-              🐦 Twitter API
+              🕷️ Nitter Scraper Backend
             </h2>
-            <p className="text-white/40 text-xs mb-4">Required for tweet collection and scanning</p>
+            <p className="text-white/40 text-xs mb-4">
+              Zero-cost Twitter scraping — no API key required
+            </p>
+
             <div className="space-y-3">
               <div>
                 <label className="text-white/40 text-xs uppercase tracking-wider mb-1.5 block">
-                  Bearer Token
+                  Backend URL
                 </label>
                 <input
-                  type="password"
-                  value={twitterBearerToken}
-                  onChange={(e) => setTwitterBearerToken(e.target.value)}
-                  placeholder="AAAA..."
+                  type="text"
+                  value={backendUrl}
+                  onChange={(e) => setBackendUrl(e.target.value)}
+                  placeholder="http://localhost:8000"
                   className="w-full bg-white/5 border border-white/15 rounded-lg px-4 py-2.5 text-white placeholder-white/20 text-sm focus:outline-none focus:border-blue-500/50 font-mono"
                 />
               </div>
-              <div className="flex items-center gap-2 p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
-                <span className="text-amber-400">⚠️</span>
-                <p className="text-amber-300/70 text-xs">
-                  Requires Twitter API v2 access. Basic tier supports 500K tweets/month.
+
+              <button
+                onClick={checkHealth}
+                disabled={healthLoading}
+                className="w-full py-2 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 rounded-lg text-sm transition-colors disabled:opacity-50"
+              >
+                {healthLoading ? "Checking..." : "Check Nitter Instances"}
+              </button>
+
+              {/* Health error */}
+              {healthError && (
+                <div className="p-3 bg-red-500/5 border border-red-500/20 rounded-lg">
+                  <p className="text-red-400 text-xs font-medium mb-1">Backend not reachable</p>
+                  <p className="text-red-300/60 text-xs">{healthError}</p>
+                  <p className="text-white/30 text-xs mt-2">
+                    Start it: <code className="text-white/50">cd backend && python run.py</code>
+                  </p>
+                </div>
+              )}
+
+              {/* Health results */}
+              {health && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/40 text-xs">
+                      {health.healthy_count}/{health.total_count} instances alive
+                    </span>
+                    <Badge variant={health.healthy_count > 0 ? "success" : "danger"}>
+                      {health.status.toUpperCase()}
+                    </Badge>
+                  </div>
+                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {Object.entries(health.instances).map(([url, alive]) => (
+                      <div key={url} className="flex items-center gap-2 text-xs">
+                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${alive ? "bg-emerald-400" : "bg-red-400"}`} />
+                        <span className={`font-mono truncate ${alive ? "text-white/60" : "text-white/25"}`}>
+                          {url.replace("https://", "")}
+                        </span>
+                        <span className={`ml-auto flex-shrink-0 ${alive ? "text-emerald-400" : "text-red-400/60"}`}>
+                          {alive ? "✓" : "✗"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Info box */}
+              <div className="flex items-start gap-2 p-3 bg-blue-500/5 border border-blue-500/20 rounded-lg">
+                <span className="text-blue-400 mt-0.5">ℹ️</span>
+                <p className="text-blue-300/70 text-xs">
+                  Nitter scrapes public Twitter data for free. Run the Python backend locally:{" "}
+                  <code className="text-blue-200/60">cd backend && pip install -r requirements.txt && python run.py</code>
                 </p>
               </div>
             </div>
@@ -168,7 +260,11 @@ export default function SettingsPage() {
             {[
               { label: "Version", value: "1.0.0", badge: "success" as const },
               { label: "Pipeline Status", value: "Active", badge: "success" as const },
-              { label: "Twitter API", value: "Not Connected", badge: "warning" as const },
+              {
+                label: "Data Source",
+                value: "Nitter (Free)",
+                badge: "info" as const,
+              },
               { label: "Alert Channels", value: "2 Active", badge: "info" as const },
             ].map((item) => (
               <div key={item.label} className="bg-white/5 rounded-lg p-3">
