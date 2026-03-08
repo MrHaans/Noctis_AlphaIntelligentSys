@@ -1,12 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/Badge";
-import { MOCK_KEYWORDS } from "@/lib/mock-data";
-import type { Keyword } from "@/lib/types";
+import { useScan } from "@/lib/use-scan";
 
-const CATEGORY_COLORS: Record<string, "danger" | "warning" | "info" | "success" | "default" | "muted"> = {
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Category = "fcfs" | "launch" | "airdrop" | "whitelist" | "alpha" | "custom";
+
+interface Keyword {
+  id: string;
+  term: string;
+  category: Category;
+  active: boolean;
+}
+
+const CATEGORY_COLORS: Record<Category, "danger" | "warning" | "info" | "success" | "default" | "muted"> = {
   fcfs: "danger",
   launch: "warning",
   airdrop: "info",
@@ -15,10 +25,49 @@ const CATEGORY_COLORS: Record<string, "danger" | "warning" | "info" | "success" 
   custom: "muted",
 };
 
+const DEFAULT_KEYWORDS: Keyword[] = [
+  { id: "k1", term: "FCFS", category: "fcfs", active: true },
+  { id: "k2", term: "first come first serve", category: "fcfs", active: true },
+  { id: "k3", term: "whitelist open", category: "whitelist", active: true },
+  { id: "k4", term: "airdrop live", category: "airdrop", active: true },
+  { id: "k5", term: "mint now", category: "launch", active: true },
+  { id: "k6", term: "presale", category: "launch", active: true },
+  { id: "k7", term: "alpha call", category: "alpha", active: true },
+  { id: "k8", term: "stealth launch", category: "launch", active: true },
+  { id: "k9", term: "free mint", category: "airdrop", active: true },
+  { id: "k10", term: "WL spots", category: "whitelist", active: true },
+];
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function KeywordScannerPage() {
-  const [keywords, setKeywords] = useState<Keyword[]>(MOCK_KEYWORDS);
+  const [keywords, setKeywords] = useState<Keyword[]>(DEFAULT_KEYWORDS);
   const [newTerm, setNewTerm] = useState("");
-  const [newCategory, setNewCategory] = useState<Keyword["category"]>("custom");
+  const [newCategory, setNewCategory] = useState<Category>("custom");
+
+  const activeTerms = useMemo(
+    () => keywords.filter((k) => k.active).map((k) => k.term),
+    [keywords]
+  );
+
+  const { data, loading, error, lastScan, refresh } = useScan({
+    keywords: activeTerms,
+    pollMs: 60_000,
+  });
+
+  // Compute live hit counts from real scan results
+  const hitCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    if (!data) return counts;
+    for (const tweet of data.results) {
+      for (const kw of tweet.matched_keywords) {
+        counts[kw.toLowerCase()] = (counts[kw.toLowerCase()] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }, [data]);
+
+  const getHits = (term: string) => hitCounts[term.toLowerCase()] ?? 0;
 
   const toggleKeyword = (id: string) => {
     setKeywords((prev) =>
@@ -37,27 +86,47 @@ export default function KeywordScannerPage() {
       term: newTerm.trim(),
       category: newCategory,
       active: true,
-      hits: 0,
     };
     setKeywords((prev) => [...prev, kw]);
     setNewTerm("");
   };
 
   const activeCount = keywords.filter((k) => k.active).length;
-  const totalHits = keywords.reduce((sum, k) => sum + k.hits, 0);
+  const totalHits = keywords.reduce((sum, k) => sum + getHits(k.term), 0);
 
   return (
     <AppShell>
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            🔍 Keyword Scanner
-          </h1>
-          <p className="text-white/40 text-sm mt-1">
-            Configure keywords to scan Twitter for crypto alpha signals
-          </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+              🔍 Keyword Scanner
+            </h1>
+            <p className="text-white/40 text-sm mt-1">
+              Configure keywords — hit counts are live from the last Nitter scan
+            </p>
+          </div>
+          <button
+            onClick={refresh}
+            disabled={loading}
+            className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/60 hover:text-white rounded-lg text-xs transition-colors disabled:opacity-40"
+          >
+            {loading ? "Scanning…" : "↻ Refresh"}
+          </button>
         </div>
+
+        {/* Error banner */}
+        {error && (
+          <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-xl">
+            <p className="text-red-400 text-sm font-medium">Backend not reachable</p>
+            <p className="text-red-300/60 text-xs mt-0.5">{error}</p>
+            <p className="text-white/30 text-xs mt-1">
+              Start it:{" "}
+              <code className="text-white/50">cd backend && python run.py</code>
+            </p>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4">
@@ -70,8 +139,12 @@ export default function KeywordScannerPage() {
             <p className="text-white/40 text-xs mt-1">Active</p>
           </div>
           <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
-            <p className="text-3xl font-bold text-amber-400">{totalHits.toLocaleString()}</p>
-            <p className="text-white/40 text-xs mt-1">Total Hits</p>
+            <p className={`text-3xl font-bold ${loading ? "text-white/30 animate-pulse" : "text-amber-400"}`}>
+              {loading ? "…" : totalHits.toLocaleString()}
+            </p>
+            <p className="text-white/40 text-xs mt-1">
+              Live Hits {lastScan ? `(${lastScan.toLocaleTimeString()})` : ""}
+            </p>
           </div>
         </div>
 
@@ -89,7 +162,7 @@ export default function KeywordScannerPage() {
             />
             <select
               value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value as Keyword["category"])}
+              onChange={(e) => setNewCategory(e.target.value as Category)}
               className="bg-white/5 border border-white/15 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500/50 appearance-none cursor-pointer"
             >
               <option value="fcfs" className="bg-[#0d1120]">FCFS</option>
@@ -115,55 +188,66 @@ export default function KeywordScannerPage() {
             <span className="text-white/40 text-sm">{keywords.length} keywords</span>
           </div>
           <div className="divide-y divide-white/5">
-            {keywords.map((kw) => (
-              <div
-                key={kw.id}
-                className={`flex items-center gap-4 px-5 py-3.5 transition-colors ${
-                  kw.active ? "hover:bg-white/3" : "opacity-50 hover:bg-white/3"
-                }`}
-              >
-                {/* Toggle */}
-                <button
-                  onClick={() => toggleKeyword(kw.id)}
-                  className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 relative ${
-                    kw.active ? "bg-blue-500" : "bg-white/20"
+            {keywords.map((kw) => {
+              const hits = getHits(kw.term);
+              return (
+                <div
+                  key={kw.id}
+                  className={`flex items-center gap-4 px-5 py-3.5 transition-colors ${
+                    kw.active ? "hover:bg-white/3" : "opacity-50 hover:bg-white/3"
                   }`}
                 >
-                  <span
-                    className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${
-                      kw.active ? "left-5" : "left-0.5"
+                  {/* Toggle */}
+                  <button
+                    onClick={() => toggleKeyword(kw.id)}
+                    className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 relative ${
+                      kw.active ? "bg-blue-500" : "bg-white/20"
                     }`}
-                  />
-                </button>
+                  >
+                    <span
+                      className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${
+                        kw.active ? "left-5" : "left-0.5"
+                      }`}
+                    />
+                  </button>
 
-                {/* Term */}
-                <span className="flex-1 text-white text-sm font-mono">{kw.term}</span>
+                  {/* Term */}
+                  <span className="flex-1 text-white text-sm font-mono">{kw.term}</span>
 
-                {/* Category */}
-                <Badge variant={CATEGORY_COLORS[kw.category]}>
-                  {kw.category.toUpperCase()}
-                </Badge>
+                  {/* Category */}
+                  <Badge variant={CATEGORY_COLORS[kw.category]}>
+                    {kw.category.toUpperCase()}
+                  </Badge>
 
-                {/* Hits */}
-                <div className="text-right w-24">
-                  <span className="text-amber-400 text-sm font-medium">{kw.hits.toLocaleString()}</span>
-                  <span className="text-white/30 text-xs ml-1">hits</span>
+                  {/* Live Hits */}
+                  <div className="text-right w-28">
+                    {loading ? (
+                      <span className="text-white/20 text-xs animate-pulse">scanning…</span>
+                    ) : (
+                      <>
+                        <span className={`text-sm font-medium ${hits > 0 ? "text-amber-400" : "text-white/20"}`}>
+                          {hits.toLocaleString()}
+                        </span>
+                        <span className="text-white/30 text-xs ml-1">hits</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Status */}
+                  <Badge variant={kw.active ? "success" : "muted"}>
+                    {kw.active ? "Active" : "Paused"}
+                  </Badge>
+
+                  {/* Delete */}
+                  <button
+                    onClick={() => removeKeyword(kw.id)}
+                    className="text-white/20 hover:text-red-400 transition-colors text-sm ml-2"
+                  >
+                    ✕
+                  </button>
                 </div>
-
-                {/* Status */}
-                <Badge variant={kw.active ? "success" : "muted"}>
-                  {kw.active ? "Active" : "Paused"}
-                </Badge>
-
-                {/* Delete */}
-                <button
-                  onClick={() => removeKeyword(kw.id)}
-                  className="text-white/20 hover:text-red-400 transition-colors text-sm ml-2"
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -172,12 +256,12 @@ export default function KeywordScannerPage() {
           <h2 className="text-white font-semibold mb-3">Category Guide</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[
-              { cat: "fcfs", desc: "First Come First Serve signals — highest priority" },
-              { cat: "launch", desc: "Token/NFT launch events (mint, presale, stealth)" },
-              { cat: "airdrop", desc: "Free token distribution events" },
-              { cat: "whitelist", desc: "Whitelist / allowlist openings" },
-              { cat: "alpha", desc: "Alpha calls and insider tips" },
-              { cat: "custom", desc: "User-defined custom keywords" },
+              { cat: "fcfs" as Category, desc: "First Come First Serve signals — highest priority" },
+              { cat: "launch" as Category, desc: "Token/NFT launch events (mint, presale, stealth)" },
+              { cat: "airdrop" as Category, desc: "Free token distribution events" },
+              { cat: "whitelist" as Category, desc: "Whitelist / allowlist openings" },
+              { cat: "alpha" as Category, desc: "Alpha calls and insider tips" },
+              { cat: "custom" as Category, desc: "User-defined custom keywords" },
             ].map(({ cat, desc }) => (
               <div key={cat} className="flex items-start gap-2">
                 <Badge variant={CATEGORY_COLORS[cat]}>{cat.toUpperCase()}</Badge>
