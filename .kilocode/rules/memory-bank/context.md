@@ -14,6 +14,17 @@ The template is a clean Next.js 16 starter with TypeScript and Tailwind CSS 4. I
 - [x] ESLint configuration
 - [x] Memory bank documentation
 - [x] Recipe system for common features
+- [x] **Crypto Alpha Intelligence System** — full dashboard UI
+  - Dashboard with pipeline overview, system stats, FCFS signals, alerts
+  - Keyword Scanner page (add/remove/toggle, category tagging, hit counts)
+  - Tweet Filter page (is_reply=false, is_retweet=false, country exclusion)
+  - FCFS Detector page (weighted scoring, critical/high/medium/low signals)
+  - Project Account Extractor page (auto-extract @mentions, $tickers, URLs)
+  - Follower Range Filter page (optional, min/max gate, presets)
+  - Alert System page (multi-channel: dashboard/telegram/discord/email)
+  - Settings page (Twitter API, Telegram bot, Discord webhook, scan config)
+  - Shared types (`src/lib/types.ts`), mock data (`src/lib/mock-data.ts`)
+  - Reusable UI: `Badge`, `StatCard`, `Sidebar`, `AppShell`
 
 ## Current Structure
 
